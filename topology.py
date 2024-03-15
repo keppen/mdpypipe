@@ -136,7 +136,7 @@ class WritePositions(TopologyReadInterface):
 
 class PrepareMDP(PipeStepInterface):
     def __init__(self, file: Path) -> None:
-        self.file_name = os.path.basename(file)
+        self.file_name = file.name
         self.mdp_dict = self.to_dict(self._read_file(file))
         print(self.mdp_dict)
 

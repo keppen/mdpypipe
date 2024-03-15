@@ -84,6 +84,8 @@ class RunMD(ShellInterface):
         index = context.find_index(self.job_name)
         print("Database has been updated")
         context.add_entry(index, f"{self.job_name}")
+        if self.software == "gromacs":
+            self.cmd.extend(["-nt", str(context.SLURM_CORES), "\n"])
 
         with open(file_path, "a") as run_file:
             msg = " ".join(self.cmd)
@@ -136,7 +138,6 @@ class RunMD(ShellInterface):
                 "mdrun",
                 "-deffnm",
                 f"{self.job_name}",
-                "\n",
             ]
             self.step_name.extend(["GROMACS", str(self.number)])
 
@@ -273,6 +274,7 @@ class CheckProgerss(PipeStepInterface):
         if self.software == "amber":
             option = "NSTEP"
         for line in self.log_content:
+            steps_done = 0
             if option in line:
                 steps_done = int(re.findall(r"\d+", line)[0])
                 if self.software == "gromacs":

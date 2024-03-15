@@ -110,18 +110,21 @@ def run_routine(context: context.ContextMD, next_step: NextStep) -> None:
 def rerun_routine(context: context.ContextMD, next_step: NextStep) -> None:
     print("### STARTING RERUN ROUTINE ###")
 
-    jobs = context.find_unfinished()
-    print(jobs[columns])
+    runs = context.find_unfinished()
+    print(runs[columns])
 
-    root = context.PATHS_ROOT
+    data_dir = context.PATHS_DATA_DIR
     software = context.TITLE_SOFTWARE
 
-    pipe_jobs = []
-    for index, job in jobs.iterrows():
-        sim_name = job.loc["SIMULATION NAME"]
-        positions_file = root / job.loc["POSITIONS FILE"]
-        topology_file = root / job.loc["TOPOLOGY FILE"]
-        config_file = root / job.loc["CONFIG FILE"]
+    pipe_jobs: List[Callable] = []
+    for index, run in runs.iterrows():
+        sim_name = run.loc["SIMULATION NAME"]
+        positions_file = data_dir / run.loc["POSITIONS FILE"]
+        topology_file = data_dir / run.loc["TOPOLOGY FILE"]
+        config_file = data_dir / run.loc["CONFIG FILE"]
+        if software == "gromacs":
+            prepare_mdp = PrepareMDP(config_file)
+            pipe_jobs.append(prepare_mdp)
         number, sim_type = sim_name.split("-")
 
         config = {
@@ -142,7 +145,7 @@ def rerun_routine(context: context.ContextMD, next_step: NextStep) -> None:
     job9.gen_command()
 
     # RUNNING PIPELINE #
-    pipe: pip.Pipeline = pip.Pipeline(*pipe_jobs)
+    pipe: pip.Pipeline = pip.Pipeline(*pipe_jobs, job9)
     pipe(context)
 
     next_step(context)
@@ -279,7 +282,7 @@ if __name__ == "__main__":
 
     pipe: pip.Pipeline = pip.Pipeline(
         context_setup_routine,
-        run_routine,
+        rerun_routine,
         remote_run_routine,
         # check_runs_routine,
         watch_queue_routine,
