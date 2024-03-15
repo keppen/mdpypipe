@@ -1,122 +1,203 @@
-import parmed as pmd
-from parmed import unit as u
-from pipeline import NextStep
-from interfaces import PipeStepInterface
-from context import ContextMD
 import os
+from pathlib import Path
+from typing import List, Dict, Any
+from numpy.typing import ArrayLike
+
+import parmed as pmd
+
+from context import ContextMD
+from interfaces import (
+    TopologyReadInterface,
+    verbose_call,
+    ShellInterface,
+    PipeStepInterface,
+)
+from pipeline import NextStep
 
 
-class ReadTopology(PipeStepInterface):
-    def __init__(self, molecule_name: str) -> None:
-        self.molecule_name = molecule_name
-        self.step_name = ["LOAD_TOPOLOGY", self.molecule_name]
+class ReadTopology(TopologyReadInterface):
+    def __init__(self, name: str, file: Path, ff: str, times: int = 1) -> None:
+        self.name = name
+        self.step_name = ["LOAD_TOPOLOGY", self.name]
+        self.software = self._check_extention(file)
+        self.structure = self.read_topology(file, ff)
+        self.structure *= times
 
+    @verbose_call
     def __call__(self, context: ContextMD, next_step: NextStep) -> None:
-        msg = ":".join(self.step_name)
-        context.do_step(msg)
-
-        context.STRUCTURE = context.STRUCTURE + self.structure
-
-        print(f"STEPS: {context.STEPS_HISTORY}")
+        print("STRUCTURE LOADED: ", self.structure)
+        context.TOPOLOGIES[self.name] = self.structure
         next_step(context)
 
-    def read_topology(self, file: str, ff: str) -> None:
-        software = self.check_extention(file)
-        self.step_name.extend([file, ff])
-        if software == "amber":
-            self.structure = pmd.amber.AmberFormat(file)
-        if software == "gmx":
-            self.structure = pmd.gromacs.GromacsTopologyFile(file)
-            if len(self.structure.residues) > 1:
-                print("There are more than one residue. Extra steps are nessesary.")
-        print(self.structure)
+    def read_topology(self, file: Path, ff: str) -> pmd.Structure:
+        self.step_name.extend([str(file), ff])
+        if self.software == "amber":
+            structure = pmd.amber.AmberFormat(str(file))
+        if self.software == "gromacs":
+            structure = pmd.gromacs.GromacsTopologyFile(str(file))
+        else:
+            raise FileNotFoundError
+        return self._reduce(self._change_type(structure))
+
+    def _reduce(self, structure: pmd.Structure):
+        return structure.split()[0][0]
+
+    def _change_type(self, structure: pmd.Structure) -> pmd.Structure:
+        return structure.copy(pmd.Structure)
 
 
-class ReadCoordinates(PipeStepInterface):
-    def __init__(self, system_name: str) -> None:
-        self.system_name = system_name
-        self.step_name = ["LOAD_COORDFILE", self.system_name]
+class ReadPositions(TopologyReadInterface):
+    def __init__(self, file: Path) -> None:
+        self.positions_data = self.read_positions(file)
+        self.step_name = ["LOAD_POSITIONS", str(file)]
 
+    @verbose_call
     def __call__(self, context: ContextMD, next_step: NextStep):
-        msg = ":".join(self.step_name)
-        context.do_step(msg)
-
-        if context.STRUCTURE.box is None:
-            context.STRUCTURE.box = self.coord_data.box
-        context.STRUCTURE.positions = self.coord_data.positions
-
-        print(f"STEPS: {context.STEPS_HISTORY}")
+        context.POSITIONS = self.positions_data
         next_step(context)
 
-    def read_coordinates(self, file: str):
-        software = self.check_extention(file)
-        self.step_name.append(file)
+    def read_positions(self, file: Path) -> pmd.unit.Quantity:
+        software = self._check_extention(file)
         if software == "amber":
-            self.coord_data = pmd.amber.Rst7(file)
-        if software == "gmx":
-            self.coord_data = pmd.gromacs.GromacsGroFile.parse(file)
+            return pmd.amber.Rst7(str(file)).positions
+        if software == "gromacs":
+            return pmd.gromacs.GromacsGroFile.parse(str(file)).positions
 
 
-class WriteParameters(PipeStepInterface):
+class ReadBox(TopologyReadInterface):
+    def __init__(self, file: Path) -> None:
+        self.box = self.read_box(file)
+        self.step_name = ["LOAD_BOX", str(file)]
+
+    @verbose_call
+    def __call__(self, context: ContextMD, next_step: NextStep):
+        context.BOX = self.box
+        next_step(context)
+
+    def read_box(self, file: Path) -> ArrayLike:
+        software = self._check_extention(file)
+        if software == "amber":
+            return pmd.amber.AmberFormat(str(file)).box
+        if software == "gromacs":
+            return pmd.gromacs.GromacsGroFile.parse(str(file)).box
+
+
+class WriteParameters(TopologyReadInterface):
     def __init__(self, basename: str, software: str) -> None:
         self.software = software
         self.basename = basename
         self.step_name = ["WRITTING_PARAMS", self.basename]
-        self._init_extentions()
+        self.ext = self._init_extention()
 
+    @verbose_call
     def __call__(self, context: ContextMD, next_step: NextStep) -> None:
-        msg = ":".join(self.step_name)
-        context.do_step(msg)
-
+        topology_file = context.PATHS_DATA_DIR / (self.basename + self.ext)
         context.STRUCTURE.save(
-            os.path.join(context.DATA_DIR, self.basename) +
-            self.params_file_ext,
+            str(topology_file),
             overwrite=True,
         )
-
-        print(f"STEPS: {context.STEPS_HISTORY}")
+        context.CURRENT_TOPFILE = topology_file
         next_step(context)
 
-    def _init_extentions(self) -> None:
+    def _init_extention(self) -> str:
         if self.software == "amber":
-            self.params_file_ext = ".parm7"
+            return ".parm7"
 
         if self.software == "gromacs":
-            self.params_file_ext = ".top"
+            return ".top"
+        return ""
 
 
-class WriteCoordinates(PipeStepInterface):
+class WritePositions(TopologyReadInterface):
     def __init__(self, basename: str, software: str) -> None:
         self.software = software
         self.basename = basename
         self.step_name = ["WRITTING_COORDS", self.basename]
-        self._init_extentions()
+        self.ext = self._init_extention()
 
+    @verbose_call
     def __call__(self, context: ContextMD, next_step: NextStep) -> None:
-        msg = ":".join(self.step_name)
-        context.do_step(msg)
-
+        positions_file = context.PATHS_DATA_DIR / (self.basename + self.ext)
         context.STRUCTURE.save(
-            os.path.join(context.DATA_DIR, self.basename) +
-            self.coord_file_ext,
+            str(positions_file),
             overwrite=True,
         )
-
-        print(f"STEPS: {context.STEPS_HISTORY}")
+        context.CURRENT_POSFILE = positions_file
         next_step(context)
 
-    def _init_extentions(self) -> None:
+    def _init_extention(self) -> str:
         if self.software == "amber":
-            self.coord_file_ext = ".rst7"
+            return ".rst7"
 
         if self.software == "gromacs":
-            self.coord_file_ext = ".gro"
+            return ".gro"
+        return ""
+
+
+class PrepareMDP(PipeStepInterface):
+    def __init__(self, file: Path) -> None:
+        self.file_name = os.path.basename(file)
+        self.mdp_dict = self.to_dict(self._read_file(file))
+        print(self.mdp_dict)
+
+    def __call__(self, context: ContextMD, next_step: NextStep) -> None:
+        enrg_groups = context.ENRG_GROUPS
+        len_enrg_groups = len(enrg_groups)
+
+        update_mdp = {
+            "tc-grps": " ".join(enrg_groups),
+            "ref_t": f"{self.mdp_dict['ref_t'] } " * len_enrg_groups,
+            "tau_t": f"{self.mdp_dict['tau_t'] } " * len_enrg_groups,
+        }
+        self.mdp_dict.update(update_mdp)
+        if "annealing" in self.mdp_dict.keys():
+            update_mdp = {
+                "annealing": f"{self.mdp_dict['annealing'] } " * len_enrg_groups,
+                "annealing-npoints": f"{self.mdp_dict['annealing-npoints'] } "
+                * len_enrg_groups,
+                "annealing-time": f"{self.mdp_dict['annealing-time'] } "
+                * len_enrg_groups,
+                "annealing-temp": f"{self.mdp_dict['annealing-temp'] } "
+                * len_enrg_groups,
+            }
+            self.mdp_dict.update(update_mdp)
+
+        file_path = os.path.join(context.PATHS_DATA_DIR, self.file_name)
+        with open(file_path, "w") as mdp_file:
+            msg = "\n".join(self.to_list(self.mdp_dict))
+            mdp_file.writelines(msg)
+        next_step(context)
+
+    def _read_file(self, file: Path) -> List[str]:
+        with open(file, "r") as file_content:
+            lines = file_content.readlines()
+            lines = list(filter(PrepareMDP.fileter_empty, lines))
+            return list(filter(PrepareMDP.filter_comments, lines))
+
+    def to_dict(self, lines: List[str]) -> Dict[str, str]:
+        splitted_lines = [i.split("=") for i in lines]
+        return {k.strip(): v.strip() for k, v in splitted_lines}
+
+    def to_list(self, options_dict: Dict[str, str]) -> List[str]:
+        return [f"{k} = {v}" for k, v in options_dict.items()]
+
+    @staticmethod
+    def fileter_empty(line: str) -> bool:
+        if len(line.strip()) == 0:
+            return False
+        return True
+
+    @staticmethod
+    def filter_comments(line: str) -> bool:
+        if line.strip().startswith(";"):
+            return False
+        return True
 
 
 if __name__ == "__main__":
-    import pipeline as pip
-    import interfaces as intf
     import context as cnx
+    import pipeline as pip
+    from shell_commands import RunMD
 
     def chk_instance(a, b):
         print(f"Check if {a} is instance of {b}: {isinstance(a, b)}")
@@ -133,16 +214,39 @@ if __name__ == "__main__":
     # chk_instance(c, intf.PipeStepInterface)
     # print(a == b)
 
-    context = cnx.ContextMD("A1")
-    job1 = ReadTopology("Mol1")
-    job1.read_topology("test/a1_test.top", "Amber14SB")
-    print(job1.step_name)
-    job2 = ReadTopology("Mol2")
-    job2.read_topology("test/chcl3.top", "GAFF")
-    job3 = ReadCoordinates("a1_chcl3")
-    job3.read_coordinates("test/10ns_a1-1.gro")
-    basename = "a1_chcl3"
-    job4 = WriteParameters(basename, "gromacs")
-    job5 = WriteCoordinates(basename, "gromacs")
-    pipe: pip.Pipeline = pip.Pipeline(job1, job2, job3, job4, job5)
-    pipe(context)
+    MKR_name = "A1"
+    SOL_name = "CHCL3"
+    basename = f"{MKR_name}in{SOL_name}"
+    read_topology_MRK_dict = {"file": "test/a1_test.top", "ff": "Amber14SB"}
+    read_topology_SOL_dict = {"file": "test/chcl3.top", "ff": "GAFF"}
+    read_positions_dict = {"file": "test/10ns_a1-1.gro"}
+    runMD_dict = {
+        "file": "/home/keppen/MD/data/amber-md/classic.md",
+        "software": "amber",
+        "number": 0,
+    }
+
+    # context = cnx.ContextMD(basename)
+    # for arg_dict in [
+    #     read_positions_dict,
+    #     read_topology_SOL_dict,
+    #     read_topology_MRK_dict,
+    #     runMD_dict,
+    # ]:
+    #     context.copy_init_files(arg_dict)
+    # job1 = ReadTopology(MKR_name)
+    # job1.read_topology(**read_topology_MRK_dict)
+    # job2 = ReadTopology(SOL_name)
+    # job2.read_topology(**read_topology_SOL_dict)
+    # job3 = ReadPositions(basename)
+    # job3.read_positions(**read_positions_dict)
+    # job8 = ReadBox(basename)
+    # job8.read_box(**read_positions_dict)
+    # job4 = WriteParameters(basename, "gromacs")
+    # job5 = WritePositions(basename, "gromacs")
+    # job6 = WriteParameters(basename, "amber")
+    # job7 = WritePositions(basename, "amber")
+    # job9 = RunMD(basename, "10ns")
+    # job9.gen_command(**runMD_dict)
+    # pipe: pip.Pipeline = pip.Pipeline(job1, job2, job3, job8, job6, job7, job9)
+    # pipe(context)
