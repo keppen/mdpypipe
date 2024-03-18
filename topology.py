@@ -13,10 +13,15 @@ from interfaces import (
     PipeStepInterface,
 )
 from pipeline import NextStep
+import logging
 
 
 class ReadTopology(TopologyReadInterface):
     def __init__(self, name: str, file: Path, ff: str, times: int = 1) -> None:
+        self.logger = logging.getLogger(self.__class__.__name__)
+
+        self.logger.info(f"Reading topology file {str(file)}")
+
         self.name = name
         self.step_name = ["LOAD_TOPOLOGY", self.name]
         self.software = self._check_extention(file)
@@ -25,8 +30,9 @@ class ReadTopology(TopologyReadInterface):
 
     @verbose_call
     def __call__(self, context: ContextMD, next_step: NextStep) -> None:
-        print("STRUCTURE LOADED: ", self.structure)
         context.TOPOLOGIES[self.name] = self.structure
+
+        self.logger.debug("Structure loaded: " + str(self.structure))
         next_step(context)
 
     def read_topology(self, file: Path, ff: str) -> pmd.Structure:
@@ -48,12 +54,17 @@ class ReadTopology(TopologyReadInterface):
 
 class ReadPositions(TopologyReadInterface):
     def __init__(self, file: Path) -> None:
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger.info(f"Reading positons file {str(file)}")
+
         self.positions_data = self.read_positions(file)
         self.step_name = ["LOAD_POSITIONS", str(file)]
 
     @verbose_call
     def __call__(self, context: ContextMD, next_step: NextStep):
         context.POSITIONS = self.positions_data
+
+        self.logger.debug("Loaded positions")
         next_step(context)
 
     def read_positions(self, file: Path) -> pmd.unit.Quantity:
@@ -66,12 +77,17 @@ class ReadPositions(TopologyReadInterface):
 
 class ReadBox(TopologyReadInterface):
     def __init__(self, file: Path) -> None:
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger.info(f"Reading positons file {str(file)}")
+
         self.box = self.read_box(file)
         self.step_name = ["LOAD_BOX", str(file)]
 
     @verbose_call
     def __call__(self, context: ContextMD, next_step: NextStep):
         context.BOX = self.box
+
+        self.logger.debug(f"Loaded bos {str(self.box)}")
         next_step(context)
 
     def read_box(self, file: Path) -> ArrayLike:
@@ -84,6 +100,8 @@ class ReadBox(TopologyReadInterface):
 
 class WriteParameters(TopologyReadInterface):
     def __init__(self, basename: str, software: str) -> None:
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger.info("Writing paramters")
         self.software = software
         self.basename = basename
         self.step_name = ["WRITTING_PARAMS", self.basename]
@@ -97,6 +115,8 @@ class WriteParameters(TopologyReadInterface):
             overwrite=True,
         )
         context.CURRENT_TOPFILE = topology_file
+
+        self.logger.debug(f"Writing paramters to file {self.basename + self.ext}")
         next_step(context)
 
     def _init_extention(self) -> str:
@@ -110,6 +130,9 @@ class WriteParameters(TopologyReadInterface):
 
 class WritePositions(TopologyReadInterface):
     def __init__(self, basename: str, software: str) -> None:
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger.info("Writing positions")
+
         self.software = software
         self.basename = basename
         self.step_name = ["WRITTING_COORDS", self.basename]
@@ -123,6 +146,8 @@ class WritePositions(TopologyReadInterface):
             overwrite=True,
         )
         context.CURRENT_POSFILE = positions_file
+
+        self.logger.debug(f"Writing positions to file {self.basename + self.ext}")
         next_step(context)
 
     def _init_extention(self) -> str:
@@ -136,6 +161,9 @@ class WritePositions(TopologyReadInterface):
 
 class PrepareMDP(PipeStepInterface):
     def __init__(self, file: Path) -> None:
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger.info(f"Setting up {str(file)}")
+
         self.file_name = file.name
         self.mdp_dict = self.to_dict(self._read_file(file))
         print(self.mdp_dict)
@@ -150,6 +178,7 @@ class PrepareMDP(PipeStepInterface):
             "tau_t": f"{self.mdp_dict['tau_t'] } " * len_enrg_groups,
         }
         self.mdp_dict.update(update_mdp)
+        self.logger.debug(f"Found {' '.join(enrg_groups)}")
         if "annealing" in self.mdp_dict.keys():
             update_mdp = {
                 "annealing": f"{self.mdp_dict['annealing'] } " * len_enrg_groups,
@@ -161,11 +190,14 @@ class PrepareMDP(PipeStepInterface):
                 * len_enrg_groups,
             }
             self.mdp_dict.update(update_mdp)
+            self.logger.debug("MD options had annealing")
 
-        file_path = os.path.join(context.PATHS_DATA_DIR, self.file_name)
+        file_path = context.PATHS_DATA_DIR / self.file_name
         with open(file_path, "w") as mdp_file:
             msg = "\n".join(self.to_list(self.mdp_dict))
             mdp_file.writelines(msg)
+
+        self.logger.debug(f"Saved to file {str(file_path)}")
         next_step(context)
 
     def _read_file(self, file: Path) -> List[str]:

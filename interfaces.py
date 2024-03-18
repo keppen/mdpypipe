@@ -6,6 +6,8 @@ from pathlib import Path
 from context import ContextMD
 from pipeline import NextStep
 import subprocess
+import logging
+from logging import Logger
 
 # class ContextInterface(ABC):
 #     STEPS_HISTORY: List[str] = []
@@ -19,7 +21,7 @@ def verbose_call(call_function: Callable) -> Callable:
     def wrapper(self, context: ContextMD, next_step: NextStep) -> None:
         msg = ":".join(self.step_name)
         context.do_step(msg)
-        print(f"STEPS DONE: {context.STEPS_HISTORY}")
+        # print(f"STEPS DONE: {context.STEPS_HISTORY}")
 
         call_function(self, context, next_step)
 

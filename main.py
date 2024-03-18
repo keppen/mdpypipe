@@ -1,25 +1,21 @@
-import os
 import time
-from typing import List, Dict, Any, Callable
 from pathlib import Path
+from typing import Any, Callable, Dict, List
+
 import context
 import pipeline as pip
-from shell_commands import RunMD, RunSLURM, CheckProgerss
-from topology import (
-    ReadTopology,
-    ReadBox,
-    WritePositions,
-    WriteParameters,
-    ReadPositions,
-    PrepareMDP,
-)
-from ssh_connection import SSHConnection
+import logging
+import logger
 from interfaces import NextStep, PipeStepInterface
-
-
-def read_from_entry(context, entry):
-    context.TOPOLOGY_FILE = entry["TOPOLOGY FILE"].tolist()[0]
-    context.POSITIONS_FILE = entry["POSITIONS FILE"].tolist()[0]
+from shell_commands import CheckProgerss, RunMD, RunSLURM
+from topology import (
+    PrepareMDP,
+    ReadBox,
+    ReadPositions,
+    ReadTopology,
+    WriteParameters,
+    WritePositions,
+)
 
 
 def init_file_check_routine(
@@ -28,7 +24,8 @@ def init_file_check_routine(
 
 
 def context_setup_routine(context: context.ContextMD, next_step: NextStep) -> None:
-    print("### STARTING CONTEXT SETUP ROUTINE ###")
+    log1 = logging.getLogger(__name__)
+    log1.info("### STARTING CONTEXT SETUP ROUTINE ###")
 
     # READ ROUTINE
 
@@ -241,8 +238,7 @@ def download_logs(context: context.ContextMD, next_step: NextStep) -> None:
 
 
 def download_finished(context: context.ContextMD, next_step: NextStep) -> None:
-    runs = context.DATABASE.find_entries(
-        **{"PROJECT NAME": context.TITLE_PROJECT_NAME})
+    runs = context.DATABASE.find_entries(**{"PROJECT NAME": context.TITLE_PROJECT_NAME})
     sim_names: List[str] = []
 
     for _, run in runs.iterrows():
@@ -256,38 +252,48 @@ def download_finished(context: context.ContextMD, next_step: NextStep) -> None:
         f"{context.PATHS_DATA_DIR}/",
     )
 
-    context.SSH_CONNECTION.run_remotely(
-        f"rm {context.PATHS_REMOTE_DIR}/{files}")
+    context.SSH_CONNECTION.run_remotely(f"rm {context.PATHS_REMOTE_DIR}/{files}")
 
     next_step(context)
 
 
 if __name__ == "__main__":
-    test_context = context.ContextMD.from_config(
-        Path("/home/keppen/MD/parameters/gromacs-test.config")
-    )
+    # logger()
+    import os
+    import re
 
-    test_context.remove_file("md.run")
+    root = "/home/keppen/MD/parameters/gromacs-gpu-test-config"
+    for config in os.listdir(root):
+        if not re.search(r"24c-gpu\.config$", config):
+            continue
 
-    columns = [
-        "PROJECT NAME",
-        "SIMULATION NAME",
-        "TOPOLOGY FILE",
-        "POSITIONS FILE",
-        "CONFIG FILE",
-        "STAGE",
-        "PID",
-    ]
-    print(test_context.DATABASE.database[columns])
+        print(config)
 
-    pipe: pip.Pipeline = pip.Pipeline(
-        context_setup_routine,
-        rerun_routine,
-        remote_run_routine,
-        # check_runs_routine,
-        watch_queue_routine,
-    )
-    pipe(test_context)
+        context_config = Path(f"{root}/{config}")
 
-    test_context.DATABASE.save()
-    print(test_context.DATABASE.database[columns])
+        test_context = context.ContextMD.from_config(context_config)
+
+        test_context.remove_file("md.run")
+
+        columns = [
+            "PROJECT NAME",
+            "SIMULATION NAME",
+            "TOPOLOGY FILE",
+            "POSITIONS FILE",
+            "CONFIG FILE",
+            "STAGE",
+            "PID",
+        ]
+        print(test_context.DATABASE.database[columns])
+
+        pipe: pip.Pipeline = pip.Pipeline(
+            context_setup_routine,
+            run_routine,
+            remote_run_routine,
+            # check_runs_routine,
+            # watch_queue_routine,
+        )
+        pipe(test_context)
+
+        test_context.DATABASE.save()
+        print(test_context.DATABASE.database[columns])

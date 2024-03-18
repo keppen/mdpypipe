@@ -1,5 +1,4 @@
 from typing import TypeVar, Protocol, Callable, Generic, runtime_checkable, Any, List
-# from interfaces import ContextInterface
 
 Context = TypeVar("Context", contravariant=True)
 NextStep = Callable[[Any], None]
@@ -7,8 +6,7 @@ NextStep = Callable[[Any], None]
 
 @runtime_checkable
 class PipeStep(Protocol[Context]):
-    def __call__(self, context: Context, next_step: NextStep) -> None:
-        ...
+    def __call__(self, context: Context, next_step: NextStep) -> None: ...
 
 
 class Pipeline(Generic[Context]):

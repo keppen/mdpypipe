@@ -1,0 +1,88 @@
+03-18 17:34 context      INFO     Setting up context from file /home/keppen/MD/parameters/gromacs-gpu-test-config/gromacs-24c-gpu.config
+03-18 17:34 context      DEBUG    Native arguments: {
+    "TITLE_SOFTWARE": "gromacs",
+    "TITLE_BASENAME": "test",
+    "TITLE_PROJECT_NAME": "gromacs-100ps-gpu-24c",
+    "PATHS_ROOT": "/home/keppen/MD/test",
+    "PATHS_REMOTE_ADRESS": "mszatko@ui.wcss.pl",
+    "PATHS_DATABASE_PATH": "/home/keppen/MD/parameters/TESTDATABASE.plk",
+    "SLURM_NODES": "1",
+    "SLURM_CORES": "24",
+    "SLURM_MEMORY": "1100mb",
+    "SLURM_TIME": "0:5:0",
+    "SLURM_ACCOUNT": "kdm",
+    "SLURM_PARTITION": "tesla",
+    "SLURM_QOS": "tesla",
+    "SLURM_GPU_RESOURCES": "tesla",
+    "SLURM_RESOURCE": "gpu",
+    "GEOMETRY_POSITIONS_FILE": "/home/keppen/MD/parameters/topologies/10ns_a1-1.gro",
+    "GEOMETRY_BOX_FILE": "/home/keppen/MD/parameters/topologies/10ns_a1-1.gro"
+}
+03-18 17:34 context      DEBUG    Unexpected arguments: {
+    "RUNMD1_FILE": "/home/keppen/MD/parameters/gromacs-md/100ps-classic.mdp",
+    "RUNMD1_SIM_TYPE": "100ps",
+    "RUNMD1_NRUNS": "1",
+    "TOPOL1_NAME": "A1",
+    "TOPOL1_FILE": "/home/keppen/MD/parameters/topologies/a1_test.top",
+    "TOPOL1_FF": "Amber14SB",
+    "TOPOL1_NUMBER": "1",
+    "TOPOL2_NAME": "CHCL3",
+    "TOPOL2_FILE": "/home/keppen/MD/parameters/topologies/chcl3.top",
+    "TOPOL2_FF": "GAFF",
+    "TOPOL2_NUMBER": "322"
+}
+03-18 17:34 context      INFO     Initializing ContextMD
+03-18 17:34 context      INFO     Initializing database
+03-18 17:34 context      INFO     The database exists
+03-18 17:34 ssh_connection INFO     Initializing SSH connection
+03-18 17:34 ssh_connection DEBUG    COMMAND	ssh-add -L
+03-18 17:34 ssh_connection DEBUG    STDOUT	ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCXeNJL0R9qP9Y+i/LTanDGVJvbGTix/6JkOzKt8WNhfoHijU1h4aZwVtFM/Gdg2U1n1J8IfUKpvVOVZhgzZGyXekP7+7vicf7XDZXyPbdLLQ9EYalRG59Z0eJUShepo/bQ5MCdoF0PK0xOkYtp9+g/IsmGTkE0NUFi5b7wj0ORzzezmLMaChj/XKvH6VjFf+5gm32CFF5GNlXkij0teBvbed7xqaMB2xbdu1ncJ8ru9iWOxPuEmQ2VjGMQtGpyrGC9Tu094Mowe5+CAJBtCX4gMBktwHwucfbdgf+UGn1LxJAo8u0YX1L1SbhhxuH5pb9i5VZM3fjbzqcp/Bu7e/EYYbgkUPwX4Kr36rebA9KHf54wVG0yjrH8EjEXsBD/q+0eo/KFxuPgHcAIS/4NS44muXFuReMi/QvtMa0MMZCYQ9byE23givgzgXh4nuiNqHEnMMiUl+yUHO6ib+T9e6ykZuFJDSVL021fxPskhPenerJ0x+vLMwh+2CJSzxbM4Ts= keppen@LAPTOP-CACFBNRL
+03-18 17:34 ssh_connection INFO     Connection is OK
+03-18 17:34 context      INFO     Initializing directories
+03-18 17:34 context      WARNING  Creating directory /home/keppen/MD/test/gromacs-100ps-gpu-24c
+03-18 17:34 __main__     INFO     ### STARTING CONTEXT SETUP ROUTINE ###
+03-18 17:34 context      INFO     Moving files to data directory
+03-18 17:34 context      DEBUG    Copying file from /home/keppen/MD/parameters/topologies/10ns_a1-1.gro to /home/keppen/MD/test/gromacs-100ps-gpu-24c/10ns_a1-1.gro
+03-18 17:34 context      DEBUG    Updating attribute GEOMETRY_POSITIONS_FILE to /home/keppen/MD/test/gromacs-100ps-gpu-24c/10ns_a1-1.gro
+03-18 17:34 context      DEBUG    Removing existing file at destination: /home/keppen/MD/test/gromacs-100ps-gpu-24c/10ns_a1-1.gro
+03-18 17:34 context      DEBUG    Copying file from /home/keppen/MD/parameters/topologies/10ns_a1-1.gro to /home/keppen/MD/test/gromacs-100ps-gpu-24c/10ns_a1-1.gro
+03-18 17:34 context      DEBUG    Updating attribute GEOMETRY_BOX_FILE to /home/keppen/MD/test/gromacs-100ps-gpu-24c/10ns_a1-1.gro
+03-18 17:34 context      DEBUG    Copying file from /home/keppen/MD/parameters/TESTDATABASE.plk to /home/keppen/MD/test/gromacs-100ps-gpu-24c/TESTDATABASE.plk
+03-18 17:34 context      DEBUG    Updating attribute PATHS_DATABASE_PATH to /home/keppen/MD/test/gromacs-100ps-gpu-24c/TESTDATABASE.plk
+03-18 17:34 context      DEBUG    Copying file from /home/keppen/MD/parameters/gromacs-md/100ps-classic.mdp to /home/keppen/MD/test/gromacs-100ps-gpu-24c/100ps-classic.mdp
+03-18 17:34 context      DEBUG    Updating attribute RUNMD1_FILE to /home/keppen/MD/test/gromacs-100ps-gpu-24c/100ps-classic.mdp
+03-18 17:34 context      DEBUG    Copying file from /home/keppen/MD/parameters/topologies/a1_test.top to /home/keppen/MD/test/gromacs-100ps-gpu-24c/a1_test.top
+03-18 17:34 context      DEBUG    Updating attribute TOPOL1_FILE to /home/keppen/MD/test/gromacs-100ps-gpu-24c/a1_test.top
+03-18 17:34 context      DEBUG    Copying file from /home/keppen/MD/parameters/topologies/chcl3.top to /home/keppen/MD/test/gromacs-100ps-gpu-24c/chcl3.top
+03-18 17:34 context      DEBUG    Updating attribute TOPOL2_FILE to /home/keppen/MD/test/gromacs-100ps-gpu-24c/chcl3.top
+03-18 17:34 context      INFO     File moving completed.
+03-18 17:34 ReadPositions INFO     Reading positons file /home/keppen/MD/test/gromacs-100ps-gpu-24c/10ns_a1-1.gro
+03-18 17:34 ReadBox      INFO     Reading positons file /home/keppen/MD/test/gromacs-100ps-gpu-24c/10ns_a1-1.gro
+03-18 17:34 ReadTopology INFO     Reading topology file /home/keppen/MD/test/gromacs-100ps-gpu-24c/a1_test.top
+03-18 17:34 ReadTopology INFO     Reading topology file /home/keppen/MD/test/gromacs-100ps-gpu-24c/chcl3.top
+03-18 17:34 WriteParameters INFO     Writing paramters
+03-18 17:34 WritePositions INFO     Writing positions
+03-18 17:34 ReadPositions DEBUG    Loaded positions
+03-18 17:34 ReadBox      DEBUG    Loaded bos [37.8376 37.8376 37.8376 90.     90.     90.    ]
+03-18 17:34 ReadTopology DEBUG    Structure loaded: <Structure 85 atoms; 1 residues; 84 bonds; parameterized>
+03-18 17:34 ReadTopology DEBUG    Structure loaded: <Structure 1610 atoms; 322 residues; 1288 bonds; parameterized>
+03-18 17:34 WriteParameters DEBUG    Writing paramters to file test.top
+03-18 17:34 WritePositions DEBUG    Writing positions to file test.gro
+03-18 17:34 PrepareMDP   INFO     Setting up /home/keppen/MD/test/gromacs-100ps-gpu-24c/100ps-classic.mdp
+03-18 17:34 RunMD        INFO     Running simulation 0-100ps
+03-18 17:34 RunMD        DEBUG    Setting gromacs run
+03-18 17:34 RunSLURM     INFO     Constructing SLURM file
+03-18 17:34 RunSLURM     DEBUG    Added gpu options
+03-18 17:34 PrepareMDP   DEBUG    Found UNK SOL
+03-18 17:34 PrepareMDP   DEBUG    Saved to file /home/keppen/MD/test/gromacs-100ps-gpu-24c/100ps-classic.mdp
+03-18 17:34 RunMD        DEBUG    Modified database: index 50
+03-18 17:34 RunMD        DEBUG    Saved MDrun script /home/keppen/MD/test/gromacs-100ps-gpu-24c/md.run
+03-18 17:34 RunSLURM     DEBUG    Saved to /home/keppen/MD/test/gromacs-100ps-gpu-24c/md.slurm
+03-18 17:34 ssh_connection DEBUG    COMMAND	ssh mszatko@ui.wcss.pl mkdir -p /home/mszatko/MD/test/gromacs-100ps-gpu-24c
+03-18 17:34 ssh_connection DEBUG    STDOUT	
+03-18 17:34 ssh_connection DEBUG    COMMAND	scp /home/keppen/MD/test/gromacs-100ps-gpu-24c/* mszatko@ui.wcss.pl:/home/mszatko/MD/test/gromacs-100ps-gpu-24c
+03-18 17:34 ssh_connection DEBUG    STDOUT	
+03-18 17:34 ssh_connection DEBUG    COMMAND	ssh mszatko@ui.wcss.pl sbatch /home/mszatko/MD/test/gromacs-100ps-gpu-24c/md.slurm
+03-18 17:34 ssh_connection DEBUG    STDOUT	
+03-18 17:34 ssh_connection DEBUG    STDERR	sbatch: error: Socket, core and/or thread specification can not be satisfied
+sbatch: error: Batch job submission failed: Requested node configuration is not available

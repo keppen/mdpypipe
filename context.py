@@ -1,14 +1,18 @@
 import os
+import json
 import re
-import pandas as pd
-from pathlib import Path
 import shutil
+import logging
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Dict, Iterable, List, Mapping
+
+import pandas as pd
 import parmed as pmd
-from typing import List, Dict, Any, Iterable, Mapping
 from numpy.typing import ArrayLike
+
 from database import Database
 from ssh_connection import SSHConnection
-from dataclasses import dataclass, field
 
 # DatabaseType = Type[Database]
 # StructureType = Type[pmd.Structure]
@@ -45,14 +49,19 @@ class ContextMD:
     PID: int = field(init=False)
 
     STEPS_HISTORY: List[str] = field(init=False, default_factory=list)
-    TOPOLOGIES: Dict[str, pmd.Structure] = field(init=False, default_factory=dict)
-    POSITIONS: pmd.unit.Quantity = field(init=False, default_factory=pmd.unit.Quantity)
+    TOPOLOGIES: Dict[str, pmd.Structure] = field(
+        init=False, default_factory=dict)
+    POSITIONS: pmd.unit.Quantity = field(
+        init=False, default_factory=pmd.unit.Quantity)
     BOX: ArrayLike = field(init=False)
 
     TOP_EXT = {"gromas": ".top", "amber": ".parm7"}
     POS_EXT = {"gromas": ".gro", "amber": ".rst7"}
 
     def __post_init__(self) -> None:
+        self.logger = logging.getLogger(__name__)
+        self.logger.info("Initializing ContextMD")
+
         self.PATHS_DATA_DIR = self.PATHS_ROOT / self.TITLE_PROJECT_NAME
         self.PATHS_REMOTE_DIR = self.PATHS_REMOTE_DIR / self.TITLE_PROJECT_NAME
         self.DATABASE = self._init_database()
@@ -62,34 +71,43 @@ class ContextMD:
         self._init_dirs()
 
     def _init_dirs(self):
+        self.logger.info("Initializing directories")
         for dir_attr in ["ROOT", "DATA_DIR", "PARAM_DIR"]:
             dir_path = getattr(self, f"PATHS_{dir_attr}")
             if not dir_path.exists():
+                self.logger.warn(f"Creating directory {str(dir_path)}")
                 os.mkdir(dir_path)
 
     def _init_database(self) -> Database:
+        self.logger.info("Initializing database")
         if self.PATHS_DATABASE_PATH.exists():
-            print("The database exists")
+            self.logger.info("The database exists")
+
             return Database(self.PATHS_DATABASE_PATH)
         else:
-            print("The database does not exist")
-        columns = [
-            "ROOT DIR",
-            "PROJECT NAME",
-            "REMOTE ADRESS",
-            "REMOTE DIR",
-            "SIMULATION NAME",
-            "TOPOLOGY FILE",
-            "POSITIONS FILE",
-            "CONFIG FILE",
-            "STAGE",
-            "HISTORY",
-            "PID",
-        ]
-        return Database.from_scratch(self.PATHS_DATABASE_PATH, columns)
+            self.logger.warn("The database does not exist")
+
+            columns = [
+                "ROOT DIR",
+                "PROJECT NAME",
+                "REMOTE ADRESS",
+                "REMOTE DIR",
+                "SIMULATION NAME",
+                "TOPOLOGY FILE",
+                "POSITIONS FILE",
+                "CONFIG FILE",
+                "STAGE",
+                "HISTORY",
+                "PID",
+            ]
+            return Database.from_scratch(self.PATHS_DATABASE_PATH, columns)
 
     @classmethod
     def from_config(cls, file: Path) -> "ContextMD":
+        logger = logging.getLogger(__name__)
+
+        logger.info(f"Setting up context from file {str(file)}")
+
         config_data = cls._parse_config(file)
         native_args, unexpected_args = {}, {}
 
@@ -103,6 +121,16 @@ class ContextMD:
                 native_args[key] = value
             else:
                 unexpected_args[key] = value
+
+        logger.debug(
+            "Native arguments: %s",
+            json.dumps({k: str(v) for k, v in native_args.items()}, indent=4),
+        )
+        logger.debug(
+            "Unexpected arguments: %s",
+            json.dumps({k: str(v)
+                       for k, v in unexpected_args.items()}, indent=4),
+        )
 
         data_cls = cls(**native_args)
 
@@ -192,28 +220,6 @@ class ContextMD:
 
         return config_list
 
-    def _set_pos_file(self, prefix: str, config_list: List[Dict[str, Any]]) -> str:
-        if prefix == "RUNMD1":
-            pos_filename = self.CURRENT_POSFILE.name
-        else:
-            nruns = len(config_list)
-            prev_sim_type = config_list[nruns - 1]["sim_type"]
-            prev_number = config_list[nruns - 1]["number"]
-            ext = self.POS_EXT[self.TITLE_SOFTWARE]
-
-            pos_filename = f"{prev_number}-{prev_sim_type}.{ext}"
-        return pos_filename
-
-    def _set_single_config(self, prefix: str) -> Dict[str, Any]:
-        single_config: Dict[str, Any] = {}
-        kword_match = f"{prefix}_"
-        for key, value in list(self.__dict__.items()):
-            if kword_match in key:
-                new_key = key.replace(kword_match, "").lower()
-                single_config[new_key] = value
-
-        return single_config
-
     @property
     def TOP_CONFIG(self) -> List[Dict[str, Any]]:
         config_list: List[Dict[str, Any]] = []
@@ -251,6 +257,28 @@ class ContextMD:
     @staticmethod
     def _is_int(string: str) -> bool:
         return string.isdigit()
+
+    def _set_pos_file(self, prefix: str, config_list: List[Dict[str, Any]]) -> str:
+        if prefix == "RUNMD1":
+            pos_filename = self.CURRENT_POSFILE.name
+        else:
+            nruns = len(config_list)
+            prev_sim_type = config_list[nruns - 1]["sim_type"]
+            prev_number = config_list[nruns - 1]["number"]
+            ext = self.POS_EXT[self.TITLE_SOFTWARE]
+
+            pos_filename = f"{prev_number}-{prev_sim_type}.{ext}"
+        return pos_filename
+
+    def _set_single_config(self, prefix: str) -> Dict[str, Any]:
+        single_config: Dict[str, Any] = {}
+        kword_match = f"{prefix}_"
+        for key, value in list(self.__dict__.items()):
+            if kword_match in key:
+                new_key = key.replace(kword_match, "").lower()
+                single_config[new_key] = value
+
+        return single_config
 
     def add_entry(self, index: int, simulation_name: str) -> None:
         new_line_dict: Dict[str, Any] = {
@@ -295,20 +323,31 @@ class ContextMD:
             return found_run.index[0]
 
     def move_files(self) -> None:
+        self.logger.info("Moving files to data directory")
         for key, src_path in self.__dict__.items():
             if not isinstance(src_path, Path):
                 continue
             if not src_path.exists() or src_path.is_dir():
                 continue
-            dest_path = self.PATHS_DATA_DIR / os.path.basename(src_path)
+            dest_path = self.PATHS_DATA_DIR / src_path.name
             if dest_path.exists():
+                self.logger.debug(
+                    f"Removing existing file at destination: {str(dest_path)}"
+                )
                 os.remove(dest_path)
+
+            self.logger.debug(
+                f"Copying file from {str(src_path)} to {str(dest_path)}")
             shutil.copy(src_path, dest_path)
+
+            self.logger.debug(f"Updating attribute {key} to {str(dest_path)}")
             self.__dict__[key] = dest_path
+        self.logger.info("File moving completed.")
 
     def remove_file(self, file_name: str):
         file_path = self.PATHS_DATA_DIR / file_name
         if file_path.exists():
+            self.logger.debug(f"removing file {str(file_path)}")
             os.remove(file_path)
 
     def do_step(self, step_name: str) -> None:

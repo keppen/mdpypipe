@@ -1,6 +1,7 @@
 import os
 import re
 import parmed as pmd
+import logging
 
 from pathlib import Path
 from typing import Any, Mapping, Dict, Optional
@@ -70,9 +71,13 @@ class RunMD(ShellInterface):
     positions_file: Path
 
     def __init__(self, **kwargs: Any):
+        self.logger = logging.getLogger(self.__class__.__name__)
+
         self.__dict__.update(kwargs)
         self.job_name = f"{self.number}-{self.sim_type}"
         self.step_name = ["SIMULATION", self.sim_type]
+
+        self.logger.info(f"Running simulation {str(self.job_name)}")
 
     def __call__(self, context: ContextMD, next_step: NextStep) -> None:
         file_path = context.PATHS_DATA_DIR / "md.run"
@@ -82,21 +87,30 @@ class RunMD(ShellInterface):
         context.CURRENT_CONFIGFILE = self.file
 
         index = context.find_index(self.job_name)
-        print("Database has been updated")
         context.add_entry(index, f"{self.job_name}")
+
+        self.logger.debug(f"Modified database: index {index}")
+
         if self.software == "gromacs":
             self.cmd.extend(["-nt", str(context.SLURM_CORES), "\n"])
+        if self.software == "amber":
+            if context.SLURM_RESOURCE == "cpu":
+                self.cmd[0] = f"mpirun -np {context.SLURM_CORES} pmemd.MPI"
+            if context.SLURM_RESOURCE == "gpu":
+                self.cmd[0] = "pmemd.cuda.MPI"
 
         with open(file_path, "a") as run_file:
             msg = " ".join(self.cmd)
             run_file.writelines(msg)
         self._make_executable(file_path)
+
+        self.logger.debug(f"Saved MDrun script {str(file_path)}")
         next_step(context)
 
     def gen_command(self) -> None:
         if self.software == "amber":
             self.cmd = [
-                "pmemd.cuda.MPI",
+                "",
                 "-O",
                 "-i",
                 self.file.name,  # input md options, 3
@@ -121,6 +135,7 @@ class RunMD(ShellInterface):
                 "\n",
             ]
             self.step_name.extend(["AMBER", str(self.number)])
+            self.logger.debug("Setting amber run")
         if self.software == "gromacs":
             self.cmd = [
                 "gmx",
@@ -140,6 +155,7 @@ class RunMD(ShellInterface):
                 f"{self.job_name}",
             ]
             self.step_name.extend(["GROMACS", str(self.number)])
+            self.logger.debug("Setting gromacs run")
 
 
 class RunSLURM(ShellInterface):
@@ -163,9 +179,13 @@ class RunSLURM(ShellInterface):
     amber_cpu = "module load Amber/22.0-foss-2021b-AmberTools-22.3-CUDA-11.4.1"
 
     def __init__(self, **kwargs: Any) -> None:
+        self.logger = logging.getLogger(self.__class__.__name__)
+
         for kwarg in kwargs:
             self.__dict__.update(kwargs)
         self.gpu_resources = f"gpu:{self.gpu_resources}:1"
+
+        self.logger.info("Constructing SLURM file")
 
     def __call__(self, context: ContextMD, next_step: NextStep) -> None:
         self.cmd.extend([f"cd {context.PATHS_REMOTE_DIR}\n", "./md.run\n"])
@@ -174,24 +194,28 @@ class RunSLURM(ShellInterface):
             msg = "\n".join(self.cmd)
             run_file.writelines(msg)
         self._make_executable(file_path)
+
+        self.logger.debug(f"Saved to {str(file_path)}")
         next_step(context)
 
     def _slurm_options(self) -> str:
         slurm_script = f"""#!/bin/bash
 #SBATCH --nodes={self.nodes}
 #SBATCH --cores={self.cores}
+#SBATCH --ntasks={self.cores}
 #SBATCH --mem={self.memory}
 #SBATCH --time={self.time}
 #SBATCH --account={self.account}
-#SBATCH --partition={self.partition}\n
 """
 
         if self.resource == "gpu":
+            slurm_script += f"#SBATCH --partition={self.partition}\n"
             slurm_script += f"#SBATCH --qos={self.qos}\n"
             slurm_script += f"#SBATCH --gres={self.gpu_resources}\n"
+            self.logger.debug("Added gpu options")
         return slurm_script
 
-    def _software_options(self) -> str:
+    def _hardware_options(self) -> str:
         if self.software == "gromacs":
             if self.resource == "gpu":
                 return self.gromacs_gpu
@@ -202,18 +226,22 @@ class RunSLURM(ShellInterface):
                 return self.amber_gpu
             if self.resource == "cpu":
                 return self.amber_cpu
+        self.logger.debug(f"Hardware options: {self.software}, {self.resource}")
         return ""
 
     def gen_command(self) -> None:
         self.cmd = [
             self._slurm_options(),
             self.source_module,
-            self._software_options(),
+            self._hardware_options(),
         ]
 
 
 class CheckProgerss(PipeStepInterface):
     def __init__(self, log_file: Path) -> None:
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger.info(f"Checking file {str(log_file)}")
+
         self.log_content = self._read_log(log_file)
         self.job_name, self.extention = self._init_job_name(log_file)
         self.software = self._init_software()
@@ -227,18 +255,25 @@ class CheckProgerss(PipeStepInterface):
 
         database_entry = context.DATABASE.find_entries(**job_kwargs)
         if database_entry["STAGE"].tolist() == ["Finished"]:
+            self.logger.info("Job has been finished already.")
             next_step(context)
 
-        if self.nsteps == self.count_steps():
+        done_steps = self.count_steps()
+        if self.nsteps == done_steps:
             stage_dict = {"STAGE": "Finished"}
+            self.logger.info("Job has been finished.")
+            self.logger.debug(f"Steps done {done_steps}")
         else:
             stage_dict = {"STAGE": "Unfinished"}
+            self.logger.info("Job was not finished.")
+            self.logger.debug(f"Steps done {done_steps}")
 
         context.DATABASE.modify(
             stage_dict,
             **job_kwargs,
         )
         context.DATABASE.save()
+        self.logger.debug("Modified and save database")
         next_step(context)
 
     def _init_job_name(self, log_file: Path) -> tuple[Any, Any]:
@@ -273,8 +308,8 @@ class CheckProgerss(PipeStepInterface):
             option = "Statistics"
         if self.software == "amber":
             option = "NSTEP"
+        steps_done = 0
         for line in self.log_content:
-            steps_done = 0
             if option in line:
                 steps_done = int(re.findall(r"\d+", line)[0])
                 if self.software == "gromacs":
