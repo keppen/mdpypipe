@@ -238,7 +238,8 @@ def download_logs(context: context.ContextMD, next_step: NextStep) -> None:
 
 
 def download_finished(context: context.ContextMD, next_step: NextStep) -> None:
-    runs = context.DATABASE.find_entries(**{"PROJECT NAME": context.TITLE_PROJECT_NAME})
+    runs = context.DATABASE.find_entries(
+        **{"PROJECT NAME": context.TITLE_PROJECT_NAME})
     sim_names: List[str] = []
 
     for _, run in runs.iterrows():
@@ -252,7 +253,8 @@ def download_finished(context: context.ContextMD, next_step: NextStep) -> None:
         f"{context.PATHS_DATA_DIR}/",
     )
 
-    context.SSH_CONNECTION.run_remotely(f"rm {context.PATHS_REMOTE_DIR}/{files}")
+    context.SSH_CONNECTION.run_remotely(
+        f"rm {context.PATHS_REMOTE_DIR}/{files}")
 
     next_step(context)
 
@@ -262,9 +264,9 @@ if __name__ == "__main__":
     import os
     import re
 
-    root = "/home/keppen/MD/parameters/gromacs-gpu-test-config"
+    root = "/home/keppen/MD/parameters/amber-gpu-test-config"
     for config in os.listdir(root):
-        if not re.search(r"24c-gpu\.config$", config):
+        if not re.search(r"12c-gpu\.config$", config):
             continue
 
         print(config)
@@ -289,7 +291,7 @@ if __name__ == "__main__":
         pipe: pip.Pipeline = pip.Pipeline(
             context_setup_routine,
             run_routine,
-            remote_run_routine,
+            # remote_run_routine,
             # check_runs_routine,
             # watch_queue_routine,
         )

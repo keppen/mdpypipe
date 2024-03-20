@@ -1,4 +1,21 @@
 import logging
+import json
+from logging import Logger
+from typing import Dict, Any
+
+
+def log_json(logger: Logger, message: str, kwargs: Dict[str, Any]) -> None:
+    def type_string(x: Any) -> str:
+        return str(type(x)).split("'")[1]
+
+    logger.debug(
+        message + ": %s",
+        json.dumps(
+            {k: f"{str(v)} : {type_string(v)}".format()
+             for k, v in kwargs.items()},
+            indent=4,
+        ),
+    )
 
 
 # set up logging to file - see previous section for more details

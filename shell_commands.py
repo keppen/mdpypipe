@@ -92,10 +92,17 @@ class RunMD(ShellInterface):
         self.logger.debug(f"Modified database: index {index}")
 
         if self.software == "gromacs":
-            self.cmd.extend(["-nt", str(context.SLURM_CORES), "\n"])
+            if context.SLURM_RESOURCE == "cpu":
+                self.cmd[-4] = "gmx"
+                self.cmd.extend(
+                    ["-nt", str(context.SLURM_CPUS_PER_TASK), "\n"])
+            if context.SLURM_RESOURCE == "gpu":
+                self.cmd[-4] = "gmx"
+                self.cmd.extend(
+                    ["-nt", str(context.SLURM_CPUS_PER_TASK), "\n"])
         if self.software == "amber":
             if context.SLURM_RESOURCE == "cpu":
-                self.cmd[0] = f"mpirun -np {context.SLURM_CORES} pmemd.MPI"
+                self.cmd[0] = f"mpirun -np {context.SLURM_NTASKS} pmemd.MPI"
             if context.SLURM_RESOURCE == "gpu":
                 self.cmd[0] = "pmemd.cuda.MPI"
 
@@ -149,7 +156,7 @@ class RunMD(ShellInterface):
                 "-o",
                 f"{self.job_name}.tpr",
                 "\n\n",
-                "gmx",
+                "",
                 "mdrun",
                 "-deffnm",
                 f"{self.job_name}",
@@ -160,14 +167,16 @@ class RunMD(ShellInterface):
 
 class RunSLURM(ShellInterface):
     nodes: int
-    cores: int
+    cpus_per_task: int
+    ntasks: int
     memory: str
     time: str
     job_name: str
-    partition: str  # A100 or Tesla
-    qos: str  # a100 or tesla
-    account: str
-    gpu_resources: str  # name of the node
+    partition: str = "tesla"  # A100 or Tesla
+    qos: str = "tesla"  # a100 or tesla
+    account: str = "kde"
+    gpu_resources: str = "tesla"  # name of the node
+    ngpu: int = 1
 
     software: str
     resource: str
@@ -183,7 +192,7 @@ class RunSLURM(ShellInterface):
 
         for kwarg in kwargs:
             self.__dict__.update(kwargs)
-        self.gpu_resources = f"gpu:{self.gpu_resources}:1"
+        self.gpu_resources = f"gpu:{self.gpu_resources}:{self.ngpu}"
 
         self.logger.info("Constructing SLURM file")
 
@@ -201,10 +210,11 @@ class RunSLURM(ShellInterface):
     def _slurm_options(self) -> str:
         slurm_script = f"""#!/bin/bash
 #SBATCH --nodes={self.nodes}
-#SBATCH --cores={self.cores}
-#SBATCH --ntasks={self.cores}
+#SBATCH --cpus-per-task={self.cpus_per_task}
+#SBATCH --ntasks={self.ntasks}
 #SBATCH --mem={self.memory}
 #SBATCH --time={self.time}
+#SBATCH --job-name={self.job_name}
 #SBATCH --account={self.account}
 """
 
@@ -226,7 +236,8 @@ class RunSLURM(ShellInterface):
                 return self.amber_gpu
             if self.resource == "cpu":
                 return self.amber_cpu
-        self.logger.debug(f"Hardware options: {self.software}, {self.resource}")
+        self.logger.debug(
+            f"Hardware options: {self.software}, {self.resource}")
         return ""
 
     def gen_command(self) -> None:

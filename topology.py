@@ -1,19 +1,20 @@
+import logging
 import os
 from pathlib import Path
-from typing import List, Dict, Any
-from numpy.typing import ArrayLike
+from typing import Any, Dict, List
 
 import parmed as pmd
+from numpy.typing import ArrayLike
 
 from context import ContextMD
 from interfaces import (
+    PipeStepInterface,
+    ShellInterface,
     TopologyReadInterface,
     verbose_call,
-    ShellInterface,
-    PipeStepInterface,
 )
+from logger import log_json
 from pipeline import NextStep
-import logging
 
 
 class ReadTopology(TopologyReadInterface):
@@ -116,7 +117,8 @@ class WriteParameters(TopologyReadInterface):
         )
         context.CURRENT_TOPFILE = topology_file
 
-        self.logger.debug(f"Writing paramters to file {self.basename + self.ext}")
+        self.logger.debug(
+            f"Writing paramters to file {self.basename + self.ext}")
         next_step(context)
 
     def _init_extention(self) -> str:
@@ -147,7 +149,8 @@ class WritePositions(TopologyReadInterface):
         )
         context.CURRENT_POSFILE = positions_file
 
-        self.logger.debug(f"Writing positions to file {self.basename + self.ext}")
+        self.logger.debug(
+            f"Writing positions to file {self.basename + self.ext}")
         next_step(context)
 
     def _init_extention(self) -> str:
@@ -166,7 +169,8 @@ class PrepareMDP(PipeStepInterface):
 
         self.file_name = file.name
         self.mdp_dict = self.to_dict(self._read_file(file))
-        print(self.mdp_dict)
+
+        log_json(self.logger, "GMX MDP config options from file", self.mdp_dict)
 
     def __call__(self, context: ContextMD, next_step: NextStep) -> None:
         enrg_groups = context.ENRG_GROUPS
@@ -179,6 +183,7 @@ class PrepareMDP(PipeStepInterface):
         }
         self.mdp_dict.update(update_mdp)
         self.logger.debug(f"Found {' '.join(enrg_groups)}")
+
         if "annealing" in self.mdp_dict.keys():
             update_mdp = {
                 "annealing": f"{self.mdp_dict['annealing'] } " * len_enrg_groups,
@@ -191,6 +196,8 @@ class PrepareMDP(PipeStepInterface):
             }
             self.mdp_dict.update(update_mdp)
             self.logger.debug("MD options had annealing")
+
+        log_json(self.logger, "New GMX MDP config options", self.mdp_dict)
 
         file_path = context.PATHS_DATA_DIR / self.file_name
         with open(file_path, "w") as mdp_file:

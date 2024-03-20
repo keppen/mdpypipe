@@ -1,8 +1,8 @@
 import os
-import json
 import re
 import shutil
 import logging
+from logger import log_json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping
@@ -23,15 +23,19 @@ class ContextMD:
     TITLE_SOFTWARE: str
     TITLE_BASENAME: str
     TITLE_PROJECT_NAME: str
+
     SLURM_NODES: int
-    SLURM_CORES: int
+    SLURM_CPUS_PER_TASK: int
+    SLURM_NTASKS: int
     SLURM_MEMORY: str
     SLURM_TIME: str
     SLURM_ACCOUNT: str
-    SLURM_PARTITION: str
-    SLURM_QOS: str
-    SLURM_GPU_RESOURCES: str
     SLURM_RESOURCE: str
+    # SLURM_PARTITION: str = field(init=False)
+    # SLURM_QOS: str = field(init=False)
+    # SLURM_GPU_RESOURCES: str = field(init=False)
+    # SLURM_NGPU: int = field(init=False)
+
     GEOMETRY_POSITIONS_FILE: Path
     GEOMETRY_BOX_FILE: Path
 
@@ -109,7 +113,8 @@ class ContextMD:
         logger.info(f"Setting up context from file {str(file)}")
 
         config_data = cls._parse_config(file)
-        native_args, unexpected_args = {}, {}
+        required_args: Dict[str, Any] = {}
+        optional_args: Dict[str, Any] = {}
 
         for key, value in config_data.items():
             if cls._is_int(value):
@@ -118,23 +123,15 @@ class ContextMD:
                 value = Path(value)
 
             if key in cls.__annotations__:
-                native_args[key] = value
+                required_args[key] = value
             else:
-                unexpected_args[key] = value
+                optional_args[key] = value
 
-        logger.debug(
-            "Native arguments: %s",
-            json.dumps({k: str(v) for k, v in native_args.items()}, indent=4),
-        )
-        logger.debug(
-            "Unexpected arguments: %s",
-            json.dumps({k: str(v)
-                       for k, v in unexpected_args.items()}, indent=4),
-        )
+        log_json(logger, "Required config arguments", required_args)
+        log_json(logger, "Optional config arguments", optional_args)
+        data_cls = cls(**required_args)
 
-        data_cls = cls(**native_args)
-
-        for key, value in unexpected_args.items():
+        for key, value in optional_args.items():
             data_cls.__dict__[key] = value
 
         return data_cls
@@ -148,6 +145,8 @@ class ContextMD:
         in_bracket = False
         for line in lines:
             line = line.strip()
+            if not line:
+                continue
             if line.startswith("{"):
                 in_bracket = True
                 section = line.split()[1]
@@ -160,7 +159,7 @@ class ContextMD:
                 value: str
                 if line.startswith(";"):
                     continue
-                key, _, value = list(map(str.strip, line.split()))
+                key, _, value, *comments = list(map(str.strip, line.split()))
                 config_data[f"{section.upper()}_{key.upper()}"] = value
 
         return config_data
@@ -193,6 +192,7 @@ class ContextMD:
                 new_key = key.replace("SLURM_", "").lower()
                 slurm_config[new_key] = value
         slurm_config["software"] = self.TITLE_SOFTWARE
+        slurm_config["job_name"] = self.TITLE_PROJECT_NAME
         return slurm_config
 
     @property
