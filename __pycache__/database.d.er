@@ -1,0 +1,13 @@
+##[pylyzer] failed /home/keppen/Code/md_pipe/database.py 1710439073 1537
+.np = pyimport "numpy"
+
+.pd = pyimport "pandas"
+
+.os = pyimport "os"
+
+.___v_desugar_1 = pyimport "typing"
+.Dict: {Type_v_global_628: |D: GenericDict|(D: GenericDict) -> {Dict(D)} | Type_v_global_628 == <const subroutine 'Dict'>}
+.Any: {typing.Any}
+.List: (Type) -> Type
+.Mapping: {typing.Mapping}
+
