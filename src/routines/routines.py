@@ -245,9 +245,10 @@ def find_pid(context: MDContext, next_step: NextStep) -> None:
         {"PROJECT NAME": context.ENVIRONMENT["PROJECT_NAME"]}
     )
     log.debug(search_result[["PROJECT NAME", "SIMULATION NAME", "STAGE", "PID"]])
-    context.SLURM["PID"] = int(search_result["PID"].max())
-
-    if not isinstance(context.SLURM["PID"], int):
+    pid: str = search_result["PID"].max()
+    try:
+        context.SLURM["PID"] = int(pid)
+    except ValueError:
         log.warning(
             f"Invalid PID in database {context.SLURM['PID']}. Reading PID from slurm log files."
         )
@@ -261,10 +262,10 @@ def find_pid(context: MDContext, next_step: NextStep) -> None:
             exit()
         context.SLURM["PID"] = process.stdout.strip().split("\n")[-1]
 
-        context.modify_entry(
-            ("PID", context.SLURM["PID"]),
-            {"PROJECT NAME": context.ENVIRONMENT["PROJECT_NAME"]},
-        )
+    context.modify_entry(
+        ("PID", str(context.SLURM["PID"])),
+        {"PROJECT NAME": context.ENVIRONMENT["PROJECT_NAME"]},
+    )
 
     next_step(context)
 
@@ -527,38 +528,38 @@ if __name__ == "__main__":
     # Set a new recursion depth limit
     sys.setrecursionlimit(2000)  # Set to a higher value as per your needs
     eq_list: list[str] = [
-        "slurm-eq-boc-cs4.config",
-        "slurm-eq-boc-css4.config",
-        "slurm-eq-boc-ds4.config",
-        "slurm-eq-boc-ls4.config",
-        "slurm-eq-boc-pas4.config",
-        "slurm-eq-boc-pgs4.config",
-        "slurm-eq-boc-pss4.config",
-        "slurm-eq-boc-vs4.config",
+        "slurm-eq-boc-csr4.config",
+        "slurm-eq-boc-cssrr4.config",
+        "slurm-eq-boc-dsr4.config",
+        "slurm-eq-boc-lsr4.config",
+        "slurm-eq-boc-pasr4.config",
+        "slurm-eq-boc-pgsr4.config",
+        "slurm-eq-boc-pssrr4.config",
+        "slurm-eq-boc-vsr4.config",
     ]
 
     sa_list: list[str] = [
         # "slurm-sa-boc-a4.config",
-        # "slurm-sa-boc-cs4.config",
-        # "slurm-sa-boc-css4.config",
-        # "slurm-sa-boc-ds4.config",
-        # "slurm-sa-boc-ls4.config",
-        # "slurm-sa-boc-pas4.config",
-        # "slurm-sa-boc-pgs4.config",
-        "slurm-sa-boc-pss4.config",
-        # "slurm-sa-boc-vs4.config",
+        # "slurm-sa-boc-csr4.config",
+        # "slurm-sa-boc-cssrr4.config",
+        # "slurm-sa-boc-dsr4.config",
+        # "slurm-sa-boc-lsr4.config",
+        # "slurm-sa-boc-pasr4.config",
+        # "slurm-sa-boc-pgsr4.config",
+        # "slurm-sa-boc-pssrr4.config",
+        # "slurm-sa-boc-vsr4.config",
     ]
 
     classic_list: list[str] = [
-        # "slurm-classic-boc-a4.config",
-        "slurm-classic-boc-cs4.config",
-        "slurm-classic-boc-css4.config",
-        "slurm-classic-boc-ds4.config",
-        "slurm-classic-boc-ls4.config",
-        "slurm-classic-boc-pas4.config",
-        "slurm-classic-boc-pgs4.config",
-        "slurm-classic-boc-pss4.config",
-        "slurm-classic-boc-vs4.config",
+        "slurm-classic-boc-a4.config",
+        "slurm-classic-boc-csr4.config",
+        "slurm-classic-boc-cssrr4.config",
+        "slurm-classic-boc-dsr4.config",
+        "slurm-classic-boc-lsr4.config",
+        "slurm-classic-boc-pasr4.config",
+        "slurm-classic-boc-pgsr4.config",
+        "slurm-classic-boc-pssrr4.config",
+        "slurm-classic-boc-vsr4.config",
     ]
 
     for i, config in enumerate(classic_list):
@@ -575,18 +576,19 @@ if __name__ == "__main__":
             print("--- JOB COMPLETED AND DOWNLOADED! ---")
             continue
 
-        print("TIME option will be overriden to '4:0:0!")
-        test_context.SLURM["TIME"] = "120:0:0"
+        print("TIME option will be overriden to '24:0:0!")
+        test_context.SLURM["TIME"] = "44:0:0"
+        test_context.SLURM["DOWNLOAD_DIR"] = Path("XXX")
 
         pipe: Pipeline[MDContext] = Pipeline(
             topology_setup_routine,
             # topology_save_routine,
             topology_save_routine_repeating_scenario,
             # run_routine,
-            rerun_routine,
-            remote_run_routine,
+            # rerun_routine,
+            # remote_run_routine,
             # check_runs_routine,
-            # watch_queue_routine,
+            watch_queue_routine,
         )
         pipe(test_context)
 
