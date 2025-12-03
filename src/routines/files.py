@@ -159,6 +159,7 @@ class PrepareMDOptions(PipeStep[MDContext]):
 
         self.mdp_dict.update(
             {
+                # "energygrps": " ".join(enrg_groups),
                 "tc-grps": " ".join(enrg_groups),
                 "ref_t": f"{self.mdp_dict.get('ref_t', '')} " * len_groups,
                 "tau_t": f"{self.mdp_dict.get('tau_t', '')} " * len_groups,

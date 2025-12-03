@@ -325,7 +325,7 @@ def watch_queue_routine(context: MDContext, next_step: NextStep) -> None:
             pipe = Pipeline(
                 download_logs,
                 check_runs_routine,
-                # download_finished,
+                download_finished,
             )
             pipe(context)
             break
@@ -507,17 +507,17 @@ def download_finished(context: MDContext, next_step: NextStep) -> None:
                 },
             )
 
-    for sim_name in simulation_names:
-        _ = context.SLURM["SSH_CONNECTION"].run_locally(
-            ["tar", "xfv", f"{download_dir}/{sim_name}.sim.tar", "-C", download_dir]
-        )
-        _ = context.SLURM["SSH_CONNECTION"].run_locally(
-            ["rm", f"{download_dir}/{sim_name}.sim.tar"]
-        )
+    # for sim_name in simulation_names:
+    #     _ = context.SLURM["SSH_CONNECTION"].run_locally(
+    #         ["tar", "xfv", f"{download_dir}/{sim_name}.sim.tar", "-C", download_dir]
+    #     )
+    #     _ = context.SLURM["SSH_CONNECTION"].run_locally(
+    #         ["rm", f"{download_dir}/{sim_name}.sim.tar"]
+    #     )
 
-    # context.SLURM["SSH_CONNECTION"].run_remotely(
-    #     f"rm {context.SLURM['REMOTE_DIR'] / context.ENVIRONMENT['PROJECT_NAME']}/{files}"
-    # )
+    context.SLURM["SSH_CONNECTION"].run_remotely(
+        f"rm {context.SLURM['REMOTE_DIR'] / context.ENVIRONMENT['PROJECT_NAME']}/{files}"
+    )
 
     next_step(context)
 
@@ -528,67 +528,153 @@ if __name__ == "__main__":
     # Set a new recursion depth limit
     sys.setrecursionlimit(2000)  # Set to a higher value as per your needs
     eq_list: list[str] = [
-        "slurm-eq-boc-csr4.config",
-        "slurm-eq-boc-cssrr4.config",
-        "slurm-eq-boc-dsr4.config",
-        "slurm-eq-boc-lsr4.config",
-        "slurm-eq-boc-pasr4.config",
-        "slurm-eq-boc-pgsr4.config",
-        "slurm-eq-boc-pssrr4.config",
-        "slurm-eq-boc-vsr4.config",
+        # "slurm-eq-boc-cs4.config",
+        # "slurm-eq-boc-css4.config",
+        # "slurm-eq-boc-ds4.config",
+        # "slurm-eq-boc-ls4.config",
+        # "slurm-eq-boc-pgs4.config",
+        "slurm-eq-boc-pgsssr.config",
+        "slurm-eq-boc-pgsrss.config",
+        # "slurm-eq-boc-pss4.config",
+        # "slurm-eq-boc-vs4.config",
+        # "slurm-eq-boc-csr4.config",
+        # "slurm-eq-boc-cssrr4.config",
+        # "slurm-eq-boc-dsr4.config",
+        # "slurm-eq-boc-lsr4.config",
+        # "slurm-eq-boc-pasr4.config",
+        # "slurm-eq-boc-pssrr4.config",
+        # "slurm-eq-boc-vsr4.config",
+        # "slurm-eq-boc-a4.config",
+        # "slurm-eq-boc-pgsr4.config",
+        # "slurm-eq-boc-pas4.config",
     ]
 
     sa_list: list[str] = [
         # "slurm-sa-boc-a4.config",
+        # "slurm-sa-boc-cs4.config",
+        # "slurm-sa-boc-css4.config",
+        # "slurm-sa-boc-ds4.config",
+        # "slurm-sa-boc-ls4.config",
+        # "slurm-sa-boc-pgs4.config",
+        "slurm-sa-boc-pgsssr.config",
+        "slurm-sa-boc-pgsrss.config",
+        # "slurm-sa-boc-pss4.config",
+        # "slurm-sa-boc-vs4.config",
         # "slurm-sa-boc-csr4.config",
         # "slurm-sa-boc-cssrr4.config",
         # "slurm-sa-boc-dsr4.config",
         # "slurm-sa-boc-lsr4.config",
         # "slurm-sa-boc-pasr4.config",
-        # "slurm-sa-boc-pgsr4.config",
         # "slurm-sa-boc-pssrr4.config",
         # "slurm-sa-boc-vsr4.config",
+        # "slurm-sa-boc-pgsr4.config",
+        # "slurm-sa-boc-pas4.config",
     ]
 
     classic_list: list[str] = [
-        "slurm-classic-boc-a4.config",
-        "slurm-classic-boc-csr4.config",
-        "slurm-classic-boc-cssrr4.config",
-        "slurm-classic-boc-dsr4.config",
-        "slurm-classic-boc-lsr4.config",
-        "slurm-classic-boc-pasr4.config",
-        "slurm-classic-boc-pgsr4.config",
-        "slurm-classic-boc-pssrr4.config",
-        "slurm-classic-boc-vsr4.config",
+        # "slurm-classic-boc-a4.config",
+        # "slurm-classic-boc-csr4.config",
+        # "slurm-classic-boc-cssrr4.config",
+        # "slurm-classic-boc-dsr4.config",
+        # "slurm-classic-boc-lsr4.config",
+        # "slurm-classic-boc-pasr4.config",
+        # "slurm-classic-boc-pssrr4.config",
+        # "slurm-classic-boc-vsr4.config",
+        # "slurm-classic-boc-cs4.config",
+        # "slurm-classic-boc-css4.config",
+        # "slurm-classic-boc-ds4.config",
+        # "slurm-classic-boc-ls4.config",
+        # "slurm-classic-boc-pgs4.config",
+        # "slurm-classic-boc-pss4.config",
+        # "slurm-classic-boc-vs4.config",
+        # "slurm-classic-boc-pgsr4.config",
+        # "slurm-classic-boc-pas4.config",
+        # "slurm-bcc-classic-boc-ds4.config",
     ]
 
-    for i, config in enumerate(classic_list):
-        root = "/home/keppen/MD/side_chains/configs/" + config
-        # root = "/home/keppen/MD/side_chains/configs/testing.config"
+    import glob
+    import os
+
+    # part_list = [
+    #     os.path.basename(f)
+    #     for f in glob.glob(
+    #         "/home/keppen/MD/side_chains/configs/chcl3/boc-pgs???-classic_part*.conf"
+    #     )
+    # ]
+
+    part_list = [
+        os.path.basename(f)
+        for f in glob.glob(
+            "/home/keppen/MD/side_chains/configs/chcl3/slurm-eq-boc-*.config"
+        )
+    ]
+    print(part_list)
+
+    for i, config in enumerate(part_list):
+        root = "/home/keppen/MD/side_chains/configs/chcl3/" + config
 
         context_config = Path(f"{root}")
 
         test_context = MDContext.from_config(context_config)
 
-        unfinished = test_context.find_unfinished()
-        print(unfinished["PID"])
-        if unfinished.empty:
-            print("--- JOB COMPLETED AND DOWNLOADED! ---")
-            continue
+        ### Ommit finished jobs OR not never run jobs ###
+        # unfinished = test_context.find_unfinished()
+        # print(unfinished["PID"])
+        # if unfinished.empty:
+        #     print("--- JOB COMPLETED AND DOWNLOADED! ---")
+        #     continue
 
-        print("TIME option will be overriden to '24:0:0!")
-        test_context.SLURM["TIME"] = "44:0:0"
-        test_context.SLURM["DOWNLOAD_DIR"] = Path("XXX")
+        # print("i = ", i)
+        # if i == 80:
+        #     break
+
+        ### Override Sim Lenght ###
+        print("TIME option will be overriden to '120:0:0!")
+        test_context.SLURM["TIME"] = "120:0:0"
+
+        ### Reset Downloaded jobs ###
+        # downloaded = test_context.find_downloaded()
+        # if not downloaded.empty:
+        #     test_context.modify_entry(
+        #         ("STAGE", "Finished"),
+        #         {
+        #             "PROJECT NAME": test_context.ENVIRONMENT["PROJECT_NAME"],
+        #             "STAGE": "DOWNLOADED",
+        #         },
+        #     )
+
+        ### Reset Finished jobs ###
+        # test_context.modify_entry(
+        #     ("STAGE", "Unfinished"),
+        #     {
+        #         "PROJECT NAME": test_context.ENVIRONMENT["PROJECT_NAME"],
+        #         "STAGE": "Finished",
+        #     },
+        # )
+
+        ### Code to force a new download dir path ###
+        # test_context.SLURM["DOWNLOAD_DIR"] = Path(
+        #     f"phd:/media/szatko/Projects/side_chain/sim/{config.split('.')[0]}/"
+        # )
+        # test_context.slurm_menager.ssh_connection.run_locally(
+        #     [
+        #         "ssh",
+        #         "phd",
+        #         "mkdir",
+        #         f"/media/szatko/Projects/side_chain/sim/{config.split('.')[0]}",
+        #     ],
+        # )
+        # test_context.slurm_menager.init_download_dir()
 
         pipe: Pipeline[MDContext] = Pipeline(
             topology_setup_routine,
-            # topology_save_routine,
-            topology_save_routine_repeating_scenario,
-            # run_routine,
+            topology_save_routine,
+            # topology_save_routine_repeating_scenario,
+            run_routine,
             # rerun_routine,
             # remote_run_routine,
             # check_runs_routine,
-            watch_queue_routine,
+            # watch_queue_routine,
         )
         pipe(test_context)
 
@@ -598,5 +684,13 @@ if __name__ == "__main__":
 
         test_context.database_menager.database.save()
         print(dataset[["PROJECT NAME", "STAGE", "PID"]])
+
+        # current_time_seconds = time.time()
+        #
+        # new_time_seconds = current_time_seconds + 1 * 30
+        # new_time_struct = time.localtime(new_time_seconds)
+        # new_time_str = time.strftime("%Y-%m-%d %H:%M:%S", new_time_struct)
+        # print(f"Next check: {new_time_str}")
+        # time.sleep(60)
 
         # exit()

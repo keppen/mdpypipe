@@ -166,6 +166,18 @@ class WriteParameters(TopologyReadInterface):
         raise ValueError(f"Unsupported simulation software: {self.software}")
 
 
+class WriteRawParameters(TopologyReadInterface):
+    def __init__(self) -> None:
+        ...
+        # self.logger: logging.Logger = logging.getLogger(self.__class__.__name__)
+
+    def __precall__(self, context: MDContext) -> None: ...
+
+    @override
+    def __call__(self, context: MDContext, next_step: NextStep) -> None:
+        self.__precall__(context)
+
+
 class WriteCoordinates(TopologyReadInterface):
     def __init__(self, index: int = 0) -> None:
         self.logger: logging.Logger = logging.getLogger(self.__class__.__name__)

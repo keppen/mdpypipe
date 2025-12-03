@@ -24,7 +24,6 @@ from src.interfaces.datatypes import (
     castDatabaseConfig,
 )
 
-
 T = TypeVar("T")
 ConfigType = dict[str, dict[str, str]]
 

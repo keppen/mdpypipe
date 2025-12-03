@@ -129,6 +129,8 @@ class SlurmMenager:
             self.slurm_config["REMOTE_ADRESS"], self.slurm_config["REMOTE_DIR"]
         )
 
+        self.init_download_dir()
+
     @property
     def ssh_connection(self) -> SSHConnection:
         if not self.slurm_config["SSH_CONNECTION"]:
@@ -142,6 +144,18 @@ class SlurmMenager:
         if not self.slurm_config["SSH_CONNECTION"]:
             raise ValueError("SSH configuration was not performed.")
         return self.slurm_config["SSH_CONNECTION"].connection
+
+    def init_download_dir(self) -> None:
+        self.logger.info("Validating the existence of download directory.")
+
+        download_dir = self.slurm_config["DOWNLOAD_DIR"]
+
+        if download_dir.exists():
+            self.logger.warning(f"Directory '{str(download_dir)}' already exists!")
+        else:
+            download_dir.mkdir(parents=True)
+            self.logger.info(f"Directory '{str(download_dir)}' has been created.")
+        self.logger.info("OK")
 
 
 class EnvironmentMenager:
@@ -433,6 +447,13 @@ class MDContext:
         query: dict[str, Any] = {
             "PROJECT NAME": self.ENVIRONMENT["PROJECT_NAME"],
             "STAGE": "Unfinished",
+        }
+        return self.database_menager.find_entries(query)
+
+    def find_downloaded(self) -> pd.DataFrame:
+        query: dict[str, Any] = {
+            "PROJECT NAME": self.ENVIRONMENT["PROJECT_NAME"],
+            "STAGE": "DOWNLOADED",
         }
         return self.database_menager.find_entries(query)
 
