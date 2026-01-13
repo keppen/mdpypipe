@@ -166,16 +166,71 @@ class WriteParameters(TopologyReadInterface):
         raise ValueError(f"Unsupported simulation software: {self.software}")
 
 
-class WriteRawParameters(TopologyReadInterface):
+class ReadRawTopology(TopologyReadInterface):
     def __init__(self) -> None:
-        ...
-        # self.logger: logging.Logger = logging.getLogger(self.__class__.__name__)
+        self.logger: logging.Logger = logging.getLogger(self.__class__.__name__)
 
-    def __precall__(self, context: MDContext) -> None: ...
+    def __precall__(self, context: MDContext) -> None:
+        self.name: str = context.CURRENT_TOPOL["NAME"]
+        self.file: Path = context.CURRENT_TOPOL["FILE"]
+        self.ff: str = context.CURRENT_TOPOL["FF"]
+        self.software: str = self._check_extension(self.file)
+
+        self.logger.info(f"Reading topology file {str(self.file)}")
 
     @override
     def __call__(self, context: MDContext, next_step: NextStep) -> None:
         self.__precall__(context)
+        self.structure: pmd.Structure = self._read_topology()
+        self.structure *= context.CURRENT_TOPOL["NUMBER"]
+        context.CURRENT_TOPOL["TOPOLOGY"] = self.structure
+
+        self.logger.debug("Structure loaded: " + str(self.structure))
+        next_step(context)
+
+    def _read_topology(self) -> pmd.Structure:
+        if self.software == "amber":
+            topology = pmd.amber.AmberFormat.parse(str(self.file))
+        elif self.software == "gromacs":
+            topology = pmd.gromacs.GromacsTopologyFile(str(self.file))
+        else:
+            raise ValueError(f"Unsupported simulation software: {self.software}")
+        return self._reduce(self._change_type(topology))
+
+    def _reduce(self, structure: pmd.Structure) -> pmd.Structure:
+        return structure.split()[0][0]
+
+    def _change_type(self, structure: pmd.Structure) -> pmd.Structure:
+        return structure.copy(pmd.Structure)
+
+
+class WriteRawParameters(TopologyReadInterface):
+    def __init__(self) -> None:
+        self.logger: logging.Logger = logging.getLogger(self.__class__.__name__)
+
+    def __precall__(self, context: MDContext) -> None:
+        self.software: str = context.ENVIRONMENT["SOFTWARE"]
+        self.basename: str = context.ENVIRONMENT["BASENAME"]
+        self.extension: str = self._file_extention()
+        self.new_topology_file: Path = context.environment_menager.data_dir / (
+            self.basename + self.extension
+        )
+        if self.new_topology_file.exists():
+            context.environment_menager.make_duplicate(self.new_topology_file)
+
+        self.logger.info("Writing paramters.")
+
+    @override
+    def __call__(self, context: MDContext, next_step: NextStep) -> None:
+        self.__precall__(context)
+
+    def _file_extention(self) -> str:
+        if self.software == "amber":
+            return ".parm7"
+
+        if self.software == "gromacs":
+            return ".top"
+        raise ValueError(f"Unsupported simulation software: {self.software}")
 
 
 class WriteCoordinates(TopologyReadInterface):
